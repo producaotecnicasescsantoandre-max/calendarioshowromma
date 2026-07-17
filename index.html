@@ -775,142 +775,132 @@ function renderMonthShows(year, month) {
             possibleShowsList.innerHTML = html;
         }
 
-        // ----- CRUD SHOWS -----
-        function addShow(date, name) {
+        // ----- CRUD SHOWS (COM GOOGLE SHEETS) -----
+        
+        async function addShow(date, name) {
             if (!date || !name.trim()) {
                 alert('Preencha data e nome do show.');
                 return false;
             }
-            if (shows.some(s => s.date === date && s.name === name.trim())) {
-                alert('Show já existe nessa data.');
+            
+            try {
+                const result = await callAppsScript('addShow', { date, name: name.trim() });
+                if (result.success) {
+                    await refreshAll();
+                    return true;
+                } else {
+                    alert(result.error || 'Erro ao adicionar show');
+                    return false;
+                }
+            } catch (error) {
+                alert('Erro ao adicionar show: ' + error.message);
                 return false;
             }
-            shows.push({ date, name: name.trim() });
-            saveShows();
-            refreshAll();
-            return true;
         }
 
-        function clearAllShows() {
+        async function clearAllShows() {
             if (shows.length === 0) return;
-            if (confirm('Remover todos os shows?')) {
-                shows = [];
-                saveShows();
-                refreshAll();
-            }
-        }
-
-        function addExamples() {
-            const examples = [
-                { date: '2026-07-25', name: 'Festival de Verão' },
-                { date: '2026-08-01', name: 'Rock no Armazém' },
-                { date: '2026-08-08', name: 'Praça do Rock' },
-                { date: '2026-08-15', name: 'Arena Show' },
-                { date: '2026-07-20', name: 'Segunda no Bar' },
-                { date: '2026-07-22', name: 'Quarta no Club' },
-                { date: '2026-08-22', name: 'Sábado Especial' },
-                { date: '2026-08-29', name: 'Último Show' },
-            ];
-            let added = 0;
-            examples.forEach(ex => {
-                if (!shows.some(s => s.date === ex.date && s.name === ex.name)) {
-                    shows.push({ date: ex.date, name: ex.name });
-                    added++;
+            if (!confirm('Remover todos os shows?')) return;
+            
+            try {
+                const result = await callAppsScript('clearAllShows');
+                if (result.success) {
+                    await refreshAll();
+                } else {
+                    alert(result.error || 'Erro ao limpar shows');
                 }
-            });
-            if (added > 0) {
-                saveShows();
-                refreshAll();
-                alert(`${added} shows de exemplo adicionados!`);
-            } else {
-                alert('Os exemplos já estão na lista.');
+            } catch (error) {
+                alert('Erro ao limpar shows: ' + error.message);
             }
         }
 
-        // Função para excluir um show
-        function deleteShow(date, name) {
-            // Perguntar se tem certeza
+        async function addExamples() {
+            try {
+                const result = await callAppsScript('addExamples');
+                if (result.success) {
+                    await refreshAll();
+                    alert(result.message || 'Shows adicionados!');
+                } else {
+                    alert(result.error || 'Erro ao adicionar exemplos');
+                }
+            } catch (error) {
+                alert('Erro ao adicionar exemplos: ' + error.message);
+            }
+        }
+
+        async function deleteShow(date, name) {
             if (!confirm(`Tem certeza que quer excluir o show "${name}" do dia ${date}?`)) {
-                return; // Cancelou
+                return;
             }
             
-            // Encontrar o índice do show no array
-            const index = shows.findIndex(s => s.date === date && s.name === name);
-            
-            if (index === -1) {
+            try {
+                const result = await callAppsScript('deleteShow', { date, name });
+                if (result.success) {
+                    await refreshAll();
+                    alert(`Show "${name}" excluído com sucesso!`);
+                } else {
+                    alert(result.error || 'Erro ao excluir show');
+                }
+            } catch (error) {
+                alert('Erro ao excluir show: ' + error.message);
+            }
+        }
+
+        async function toggleShowStatus(date, name) {
+            const show = shows.find(s => s.date === date && s.name === name);
+            if (!show) {
                 alert('Show não encontrado!');
                 return;
             }
             
-            // Remover do array
-            shows.splice(index, 1);
+            const currentCanGo = canGoToShow(show.date);
+            const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
             
-            // Salvar no localStorage
-            saveShows();
-            
-            // Atualizar a tela
-            refreshAll();
-            
-            // Mensagem de confirmação
-            alert(`Show "${name}" excluído com sucesso!`);
+            try {
+                const result = await callAppsScript('updateManualStatus', { 
+                    date, 
+                    name, 
+                    manualStatus: newManualStatus 
+                });
+                if (result.success) {
+                    await refreshAll();
+                } else {
+                    alert(result.error || 'Erro ao atualizar status');
+                }
+            } catch (error) {
+                alert('Erro ao atualizar status: ' + error.message);
+            }
         }
 
-        // Tornar a função acessível globalmente (para o botão)
+        async function togglePago(date, name) {
+            const show = shows.find(s => s.date === date && s.name === name);
+            if (!show) {
+                alert('Show não encontrado!');
+                return;
+            }
+            
+            const newPago = !show.pago;
+            
+            try {
+                const result = await callAppsScript('updatePago', { 
+                    date, 
+                    name, 
+                    pago: newPago 
+                });
+                if (result.success) {
+                    await refreshAll();
+                } else {
+                    alert(result.error || 'Erro ao atualizar pagamento');
+                }
+            } catch (error) {
+                alert('Erro ao atualizar pagamento: ' + error.message);
+            }
+        }
+
+        // Tornar funções acessíveis globalmente
         window.deleteShow = deleteShow;
-
-        // Função para alternar o status manual de um show
-        function toggleShowStatus(date, name) {
-            // Encontrar o show
-            const show = shows.find(s => s.date === date && s.name === name);
-            
-            if (!show) {
-                alert('Show não encontrado!');
-                return;
-            }
-            
-            // Alternar o status manual
-            if (show.manualStatus === undefined) {
-                // Se não tem status manual, criar com base no status atual
-                const currentCanGo = canGoToShow(show.date);
-                show.manualStatus = !currentCanGo; // Inverter
-            } else {
-                // Se já tem status manual, inverter
-                show.manualStatus = !show.manualStatus;
-            }
-            
-            // Salvar no localStorage
-            saveShows();
-            
-            // Atualizar a tela
-            refreshAll();
-        }
-
-
-        // Função para alternar o status de pagamento de um show
-        function togglePago(date, name) {
-            // Encontrar o show
-            const show = shows.find(s => s.date === date && s.name === name);
-            
-            if (!show) {
-                alert('Show não encontrado!');
-                return;
-            }
-            
-            // Alternar o status de pagamento
-            show.pago = !show.pago;
-            
-            // Salvar no localStorage
-            saveShows();
-            
-            // Atualizar a tela
-            refreshAll();
-        }
-
-        // Tornar a função acessível globalmente (para o botão)
-        window.togglePago = togglePago;
-
-        // Tornar a função acessível globalmente (para o botão)
         window.toggleShowStatus = toggleShowStatus;
+        window.togglePago = togglePago;
 
 
         // ----- PERSISTÊNCIA -----
