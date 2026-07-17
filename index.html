@@ -833,8 +833,17 @@ function renderMonthShows(year, month) {
                 return;
             }
             
+            // 🔧 CORREÇÃO: Garantir que a data está no formato YYYY-MM-DD
+            let formattedDate = date;
+            if (date.includes('T')) {
+                formattedDate = date.split('T')[0];
+            }
+            
             try {
-                const result = await callAppsScript('deleteShow', { date, name });
+                const result = await callAppsScript('deleteShow', { 
+                    date: formattedDate, 
+                    name 
+                });
                 if (result.success) {
                     await refreshAll();
                     alert(`Show "${name}" excluído com sucesso!`);
@@ -853,12 +862,18 @@ function renderMonthShows(year, month) {
                 return;
             }
             
+            // 🔧 CORREÇÃO: Garantir que a data está no formato YYYY-MM-DD
+            let formattedDate = date;
+            if (date.includes('T')) {
+                formattedDate = date.split('T')[0];
+            }
+            
             const currentCanGo = canGoToShow(show.date);
             const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
             
             try {
                 const result = await callAppsScript('updateManualStatus', { 
-                    date, 
+                    date: formattedDate, 
                     name, 
                     manualStatus: newManualStatus 
                 });
@@ -879,11 +894,17 @@ function renderMonthShows(year, month) {
                 return;
             }
             
+            // 🔧 CORREÇÃO: Garantir que a data está no formato YYYY-MM-DD
+            let formattedDate = date;
+            if (date.includes('T')) {
+                formattedDate = date.split('T')[0];
+            }
+            
             const newPago = !show.pago;
             
             try {
                 const result = await callAppsScript('updatePago', { 
-                    date, 
+                    date: formattedDate, 
                     name, 
                     pago: newPago 
                 });
