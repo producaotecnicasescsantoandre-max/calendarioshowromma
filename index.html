@@ -799,7 +799,7 @@
             fetch(url)
                 .then(response => response.text())
                 .then(text => {
-                    if (text.includes('"success":true')) {
+                    if (text.indexOf('success') > -1) {
                         refreshAll();
                     } else {
                         alert('Erro ao atualizar status');
@@ -821,7 +821,7 @@
             fetch(url)
                 .then(response => response.text())
                 .then(text => {
-                    if (text.includes('"success":true')) {
+                    if (text.indexOf('success') > -1) {
                         refreshAll();
                     } else {
                         alert('Erro ao atualizar pagamento');
