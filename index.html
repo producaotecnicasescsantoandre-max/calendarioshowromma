@@ -1000,15 +1000,20 @@ Object.defineProperty(window, 'shows', {
         }
 
         // ----- REFRESH -----
-        async function refreshAll() {
-            try {
-                const data = await carregarDoSheet();
-                if (Array.isArray(data)) shows = data;
-            } catch (error) {
-                console.error('Erro ao recarregar:', error);
-            }
-            renderCalendar(currentYear, currentMonth);
+async function refreshAll() {
+    try {
+        const data = await carregarDoSheet();
+        if (Array.isArray(data)) {
+            shows.length = 0;
+            data.forEach(function(item) {
+                shows.push(item);
+            });
         }
+    } catch (error) {
+        console.error('Erro ao recarregar:', error);
+    }
+    renderCalendar(currentYear, currentMonth);
+}
 
         // ----- NAVEGAÇÃO -----
         function goToPrevMonth() {
