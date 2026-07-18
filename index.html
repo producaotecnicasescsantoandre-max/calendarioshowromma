@@ -899,7 +899,7 @@ function renderMonthShows(year, month) {
             }
         }
 
-async function toggleShowStatus(date, name) {
+function toggleShowStatus(date, name) {
     const show = shows.find(s => s.date === date && s.name === name);
     if (!show) {
         alert('Show não encontrado na lista!');
@@ -909,19 +909,20 @@ async function toggleShowStatus(date, name) {
     const currentCanGo = canGoToShow(show.date);
     const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
     
-    try {
-        const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
-        const response = await fetch(url);
-        const text = await response.text();
-        
-        if (text.includes('"success":true')) {
-            await refreshAll();
-        } else {
-            alert('Erro ao atualizar status');
-        }
-    } catch (error) {
-        alert('Erro: ' + error.message);
-    }
+    const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
+    
+    fetch(url)
+        .then(response => response.text())
+        .then(text => {
+            if (text.includes('"success":true')) {
+                refreshAll();
+            } else {
+                alert('Erro ao atualizar status');
+            }
+        })
+        .catch(error => {
+            alert('Erro: ' + error.message);
+        });
 }
             
             console.log('Atualizando status:', { cleanDate, name });
@@ -945,7 +946,7 @@ async function toggleShowStatus(date, name) {
             }
         }
 
-async function togglePago(date, name) {
+function togglePago(date, name) {
     const show = shows.find(s => s.date === date && s.name === name);
     if (!show) {
         alert('Show não encontrado na lista!');
@@ -954,19 +955,20 @@ async function togglePago(date, name) {
     
     const newPago = !show.pago;
     
-    try {
-        const url = `${SCRIPT_URL}?action=updatePago&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&pago=${newPago}`;
-        const response = await fetch(url);
-        const text = await response.text();
-        
-        if (text.includes('"success":true')) {
-            await refreshAll();
-        } else {
-            alert('Erro ao atualizar pagamento');
-        }
-    } catch (error) {
-        alert('Erro: ' + error.message);
-    }
+    const url = `${SCRIPT_URL}?action=updatePago&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&pago=${newPago}`;
+    
+    fetch(url)
+        .then(response => response.text())
+        .then(text => {
+            if (text.includes('"success":true')) {
+                refreshAll();
+            } else {
+                alert('Erro ao atualizar pagamento');
+            }
+        })
+        .catch(error => {
+            alert('Erro: ' + error.message);
+        });
 }
             
             console.log('Atualizando pagamento:', { cleanDate, name });
