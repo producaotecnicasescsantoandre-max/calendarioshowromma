@@ -798,13 +798,17 @@
             const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
             fetch(url)
                 .then(response => response.text())
-                .then(text => {
-                    if (text.indexOf('success') > -1) {
-                        refreshAll();
-                    } else {
-                        alert('Erro ao atualizar status');
-                    }
-                })
+.then(text => {
+    if (text.indexOf('success') > -1) {
+        carregarDoSheet().then(data => {
+            if (Array.isArray(data)) {
+                shows.length = 0;
+                data.forEach(function(item) { shows.push(item); });
+            }
+            renderCalendar(currentYear, currentMonth);
+        });
+    }
+})
                 .catch(error => {
                     alert('Erro: ' + error.message);
                 });
