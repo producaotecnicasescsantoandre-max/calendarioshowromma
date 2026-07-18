@@ -899,24 +899,30 @@ function renderMonthShows(year, month) {
             }
         }
 
-        async function toggleShowStatus(date, name) {
-            const show = window.getShows().find(s => s.date === date && s.name === name);
-            if (!show) {
-                alert('Show não encontrado na lista!');
-                return;
-            }
-            
-            // 🔧 GARANTIR que a data seja YYYY-MM-DD
-            let cleanDate = date;
-            if (typeof date === 'string') {
-                if (date.includes('T')) cleanDate = date.split('T')[0];
-                if (date.includes('/')) {
-                    const parts = date.split('/');
-                    if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-                        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                    }
-                }
-            }
+async function toggleShowStatus(date, name) {
+    const show = shows.find(s => s.date === date && s.name === name);
+    if (!show) {
+        alert('Show não encontrado na lista!');
+        return;
+    }
+    
+    const currentCanGo = canGoToShow(show.date);
+    const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
+    
+    try {
+        const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        
+        if (text.includes('"success":true')) {
+            await refreshAll();
+        } else {
+            alert('Erro ao atualizar status');
+        }
+    } catch (error) {
+        alert('Erro: ' + error.message);
+    }
+}
             
             console.log('Atualizando status:', { cleanDate, name });
             
@@ -939,24 +945,29 @@ function renderMonthShows(year, month) {
             }
         }
 
-        async function togglePago(date, name) {
-            const show = window.getShows().find(s => s.date === date && s.name === name);
-            if (!show) {
-                alert('Show não encontrado na lista!');
-                return;
-            }
-            
-            // 🔧 GARANTIR que a data seja YYYY-MM-DD
-            let cleanDate = date;
-            if (typeof date === 'string') {
-                if (date.includes('T')) cleanDate = date.split('T')[0];
-                if (date.includes('/')) {
-                    const parts = date.split('/');
-                    if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-                        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                    }
-                }
-            }
+async function togglePago(date, name) {
+    const show = shows.find(s => s.date === date && s.name === name);
+    if (!show) {
+        alert('Show não encontrado na lista!');
+        return;
+    }
+    
+    const newPago = !show.pago;
+    
+    try {
+        const url = `${SCRIPT_URL}?action=updatePago&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&pago=${newPago}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        
+        if (text.includes('"success":true')) {
+            await refreshAll();
+        } else {
+            alert('Erro ao atualizar pagamento');
+        }
+    } catch (error) {
+        alert('Erro: ' + error.message);
+    }
+}
             
             console.log('Atualizando pagamento:', { cleanDate, name });
             
