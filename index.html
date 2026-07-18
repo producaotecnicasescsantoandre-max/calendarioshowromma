@@ -976,7 +976,12 @@ function renderMonthShows(year, month) {
         window.deleteShow = deleteShow;
         window.toggleShowStatus = toggleShowStatus;
         window.togglePago = togglePago;
-        window.shows = shows; // 🔧 ADICIONE ESTA LINHA
+
+        // Atualiza a referência global sempre que os shows forem acessados
+Object.defineProperty(window, 'shows', {
+    get: function() { return shows; },
+    configurable: true
+});
 
 
         // ----- PERSISTÊNCIA -----
