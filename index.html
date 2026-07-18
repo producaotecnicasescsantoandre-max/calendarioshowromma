@@ -806,10 +806,6 @@ function toggleShowStatus(date, name) {
             location.reload();
         });
 }
-                .catch(error => {
-                    alert('Erro: ' + error.message);
-                });
-        }
 
 function togglePago(date, name) {
     const show = shows.find(s => s.date === date && s.name === name);
