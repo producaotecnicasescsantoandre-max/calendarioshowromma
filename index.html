@@ -894,7 +894,7 @@ function renderMonthShows(year, month) {
         }
 
         async function toggleShowStatus(date, name) {
-            const show = shows.find(s => s.date === date && s.name === name);
+            const show = window.getShows().find(s => s.date === date && s.name === name);
             if (!show) {
                 alert('Show não encontrado na lista!');
                 return;
@@ -934,7 +934,7 @@ function renderMonthShows(year, month) {
         }
 
         async function togglePago(date, name) {
-            const show = shows.find(s => s.date === date && s.name === name);
+            const show = window.getShows().find(s => s.date === date && s.name === name);
             if (!show) {
                 alert('Show não encontrado na lista!');
                 return;
@@ -978,10 +978,7 @@ function renderMonthShows(year, month) {
         window.togglePago = togglePago;
 
         // Atualiza a referência global sempre que os shows forem acessados
-Object.defineProperty(window, 'shows', {
-    get: function() { return shows; },
-    configurable: true
-});
+window.getShows = function() { return shows; };
 
 
         // ----- PERSISTÊNCIA -----
