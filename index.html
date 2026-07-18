@@ -787,54 +787,48 @@
             }
         }
 
-        function toggleShowStatus(date, name) {
-            const show = window.getShows().find(s => s.date === date && s.name === name);
-            if (!show) {
-                alert('Show não encontrado na lista!');
-                return;
-            }
-            const currentCanGo = canGoToShow(show.date);
-            const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
-            const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
-            fetch(url)
-                .then(response => response.text())
-.then(text => {
-    if (text.indexOf('success') > -1) {
-        carregarDoSheet().then(data => {
-            if (Array.isArray(data)) {
-                shows.length = 0;
-                data.forEach(function(item) { shows.push(item); });
-            }
-            renderCalendar(currentYear, currentMonth);
-        });
+function toggleShowStatus(date, name) {
+    const show = shows.find(s => s.date === date && s.name === name);
+    if (!show) {
+        alert('Show não encontrado na lista!');
+        return;
     }
-})
+    const currentCanGo = canGoToShow(show.date);
+    const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
+    const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
+    fetch(url)
+        .then(response => response.text())
+        .then(text => {
+            location.reload();
+        })
+        .catch(error => {
+            alert('Erro: ' + error.message);
+            location.reload();
+        });
+}
                 .catch(error => {
                     alert('Erro: ' + error.message);
                 });
         }
 
-        function togglePago(date, name) {
-            const show = window.getShows().find(s => s.date === date && s.name === name);
-            if (!show) {
-                alert('Show não encontrado na lista!');
-                return;
-            }
-            const newPago = !show.pago;
-            const url = `${SCRIPT_URL}?action=updatePago&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&pago=${newPago}`;
-            fetch(url)
-                .then(response => response.text())
-                .then(text => {
-                    if (text.indexOf('success') > -1) {
-                        refreshAll();
-                    } else {
-                        alert('Erro ao atualizar pagamento');
-                    }
-                })
-                .catch(error => {
-                    alert('Erro: ' + error.message);
-                });
-        }
+function togglePago(date, name) {
+    const show = shows.find(s => s.date === date && s.name === name);
+    if (!show) {
+        alert('Show não encontrado na lista!');
+        return;
+    }
+    const newPago = !show.pago;
+    const url = `${SCRIPT_URL}?action=updatePago&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&pago=${newPago}`;
+    fetch(url)
+        .then(response => response.text())
+        .then(text => {
+            location.reload();
+        })
+        .catch(error => {
+            alert('Erro: ' + error.message);
+            location.reload();
+        });
+}
 
         window.deleteShow = deleteShow;
         window.toggleShowStatus = toggleShowStatus;
