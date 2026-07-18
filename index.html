@@ -507,6 +507,36 @@
         async function carregarDoSheet() {
             try {
                 const result = await callAppsScript('getShows');
+                // 🔧 GARANTIR que a data seja YYYY-MM-DD
+                if (Array.isArray(result)) {
+                    result.forEach(show => {
+                        if (typeof show.date === 'string') {
+                            // Se tiver 'T', pegar só a data
+                            if (show.date.includes('T')) {
+                                show.date = show.date.split('T')[0];
+                            }
+                            // Se tiver barras (DD/MM/YYYY)
+                            if (show.date.includes('/')) {
+                                const parts = show.date.split('/');
+                                if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                                    show.date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                                }
+                            }
+                        }
+                        // Se for objeto Date, formatar
+                        if (show.date && typeof show.date !== 'string') {
+                            try {
+                                const d = new Date(show.date);
+                                if (!isNaN(d)) {
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    show.date = `${year}-${month}-${day}`;
+                                }
+                            } catch(e) {}
+                        }
+                    });
+                }
                 return result;
             } catch (error) {
                 console.error('Erro ao carregar:', error);
@@ -829,19 +859,27 @@ function renderMonthShows(year, month) {
         }
 
         async function deleteShow(date, name) {
-            if (!confirm(`Tem certeza que quer excluir o show "${name}" do dia ${date}?`)) {
+            if (!confirm(`Tem certeza que quer excluir o show "${name}"?`)) {
                 return;
             }
             
-            // 🔧 CORREÇÃO: Garantir que a data está no formato YYYY-MM-DD
-            let formattedDate = date;
-            if (date.includes('T')) {
-                formattedDate = date.split('T')[0];
+            // 🔧 GARANTIR que a data seja YYYY-MM-DD
+            let cleanDate = date;
+            if (typeof date === 'string') {
+                if (date.includes('T')) cleanDate = date.split('T')[0];
+                if (date.includes('/')) {
+                    const parts = date.split('/');
+                    if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    }
+                }
             }
+            
+            console.log('Excluindo:', { cleanDate, name });
             
             try {
                 const result = await callAppsScript('deleteShow', { 
-                    date: formattedDate, 
+                    date: cleanDate, 
                     name 
                 });
                 if (result.success) {
@@ -858,22 +896,30 @@ function renderMonthShows(year, month) {
         async function toggleShowStatus(date, name) {
             const show = shows.find(s => s.date === date && s.name === name);
             if (!show) {
-                alert('Show não encontrado!');
+                alert('Show não encontrado na lista!');
                 return;
             }
             
-            // 🔧 CORREÇÃO: Garantir que a data está no formato YYYY-MM-DD
-            let formattedDate = date;
-            if (date.includes('T')) {
-                formattedDate = date.split('T')[0];
+            // 🔧 GARANTIR que a data seja YYYY-MM-DD
+            let cleanDate = date;
+            if (typeof date === 'string') {
+                if (date.includes('T')) cleanDate = date.split('T')[0];
+                if (date.includes('/')) {
+                    const parts = date.split('/');
+                    if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    }
+                }
             }
+            
+            console.log('Atualizando status:', { cleanDate, name });
             
             const currentCanGo = canGoToShow(show.date);
             const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
             
             try {
                 const result = await callAppsScript('updateManualStatus', { 
-                    date: formattedDate, 
+                    date: cleanDate, 
                     name, 
                     manualStatus: newManualStatus 
                 });
@@ -890,21 +936,29 @@ function renderMonthShows(year, month) {
         async function togglePago(date, name) {
             const show = shows.find(s => s.date === date && s.name === name);
             if (!show) {
-                alert('Show não encontrado!');
+                alert('Show não encontrado na lista!');
                 return;
             }
             
-            // 🔧 CORREÇÃO: Garantir que a data está no formato YYYY-MM-DD
-            let formattedDate = date;
-            if (date.includes('T')) {
-                formattedDate = date.split('T')[0];
+            // 🔧 GARANTIR que a data seja YYYY-MM-DD
+            let cleanDate = date;
+            if (typeof date === 'string') {
+                if (date.includes('T')) cleanDate = date.split('T')[0];
+                if (date.includes('/')) {
+                    const parts = date.split('/');
+                    if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    }
+                }
             }
+            
+            console.log('Atualizando pagamento:', { cleanDate, name });
             
             const newPago = !show.pago;
             
             try {
                 const result = await callAppsScript('updatePago', { 
-                    date: formattedDate, 
+                    date: cleanDate, 
                     name, 
                     pago: newPago 
                 });
