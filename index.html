@@ -370,26 +370,10 @@
         .form-add .btn {
             padding: 10px 24px;
         }
-        .actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 12px;
-        }
-        .delete-show {
-            background: none;
-            border: none;
-            color: #94a3b8;
-            cursor: pointer;
-            font-size: 1rem;
-            padding: 0 4px;
-        }
-        .delete-show:hover { color: #ef4444; }
     </style>
 </head>
 <body>
 <div class="app">
-    <!-- HEADER -->
     <div class="header">
         <h1>
             🎸 Calendário de Shows
@@ -404,7 +388,6 @@
         </div>
     </div>
 
-    <!-- CONTROLES -->
     <div class="calendar-controls">
         <div class="month-nav">
             <button id="prevMonth">◀</button>
@@ -418,22 +401,15 @@
         </div>
     </div>
 
-    <!-- CALENDÁRIO -->
-    <div class="calendar-grid" id="calendarGrid">
-        <!-- gerado por JS -->
-    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
 
-    <!-- SEÇÃO INFERIOR -->
     <div class="bottom-section">
-        <!-- Lista de shows do mês -->
         <div class="card">
             <h3>📋 Shows deste mês</h3>
             <ul class="show-list" id="monthShowsList">
                 <li class="empty-msg">Nenhum show neste mês.</li>
             </ul>
         </div>
-
-        <!-- Adicionar show + lista de possíveis -->
         <div class="card">
             <h3>➕ Adicionar show</h3>
             <div class="form-add">
@@ -454,20 +430,14 @@
 <script>
     (function() {
 
-        // ===== CONFIGURAÇÃO GOOGLE SHEETS =====
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxIrqtEFX5rEsMpSdyPgd58k7IZGf1do1ZOsSf_rxTN6wlPwZNjAPYPjG79QbT18E4Y/exec';
+        const BASE_WORK_DATE = new Date(2026, 6, 18);
+        const WORK_DAYS = [2, 3, 4, 5];
 
-        // ----- CONFIGURAÇÃO DA ESCALA -----
-        const BASE_WORK_DATE = new Date(2026, 6, 18); // 18/07/2026 sábado = trabalho
-        const WORK_DAYS = [2, 3, 4, 5]; // terça a sexta
+        let shows = [];
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
 
-        // ----- ESTADO -----
-        let shows = []; // { date: 'YYYY-MM-DD', name: string }
-        let currentDate = new Date(); // mês atual exibido
-        let currentMonth = currentDate.getMonth();
-        let currentYear = currentDate.getFullYear();
-
-        // ----- DOM ELEMENTOS -----
         const gridEl = document.getElementById('calendarGrid');
         const monthLabel = document.getElementById('monthLabel');
         const monthShowsList = document.getElementById('monthShowsList');
@@ -481,8 +451,6 @@
         const nextBtn = document.getElementById('nextMonth');
         const todayBtn = document.getElementById('todayBtn');
 
-
-        // ===== FUNÇÃO PARA CHAMAR O APPS SCRIPT =====
         function callAppsScript(action, params = {}) {
             return new Promise((resolve, reject) => {
                 let url = `${SCRIPT_URL}?action=${action}`;
@@ -507,21 +475,15 @@
         async function carregarDoSheet() {
             try {
                 const result = await callAppsScript('getShows');
-                // 🔧 GARANTIR que a data seja YYYY-MM-DD
                 if (Array.isArray(result)) {
                     result.forEach(show => {
-                        // CONVERTER STRING PARA BOOLEAN
                         if (show.manualStatus === 'true') show.manualStatus = true;
                         if (show.manualStatus === 'false') show.manualStatus = false;
                         if (show.pago === 'true') show.pago = true;
                         if (show.pago === 'false') show.pago = false;
                         
                         if (typeof show.date === 'string') {
-                            // Se tiver 'T', pegar só a data
-                            if (show.date.includes('T')) {
-                                show.date = show.date.split('T')[0];
-                            }
-                            // Se tiver barras (DD/MM/YYYY)
+                            if (show.date.includes('T')) show.date = show.date.split('T')[0];
                             if (show.date.includes('/')) {
                                 const parts = show.date.split('/');
                                 if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
@@ -529,7 +491,6 @@
                                 }
                             }
                         }
-                        // Se for objeto Date, formatar
                         if (show.date && typeof show.date !== 'string') {
                             try {
                                 const d = new Date(show.date);
@@ -550,7 +511,6 @@
             }
         }
 
-        // ----- FUNÇÕES AUXILIARES -----
         function parseDate(str) {
             const parts = str.split('-');
             return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
@@ -591,25 +551,14 @@
         }
 
         function canGoToShow(dateStr) {
-            // Primeiro, verificar se existe status manual para este show
-            // (precisamos verificar todos os shows com esta data)
             const showsOnDate = shows.filter(s => s.date === dateStr);
-            
-            // Se houver algum show com status manual definido, usar ele
-            // (assumimos que todos os shows na mesma data têm o mesmo status)
             const manualShow = showsOnDate.find(s => s.manualStatus !== undefined);
-            if (manualShow) {
-                return manualShow.manualStatus;
-            }
-            
-            // Se não tiver status manual, usar a regra normal
+            if (manualShow) return manualShow.manualStatus;
             const date = parseDate(dateStr);
             const status = getDayStatus(date);
             if (status === 'work' || status === 'weekend-work') return false;
             return true;
         }
-
-
 
         function getShowsForDate(dateStr) {
             return shows.filter(s => s.date === dateStr);
@@ -624,168 +573,131 @@
             return shows.filter(s => canGoToShow(s.date));
         }
 
-        // ----- RENDER CALENDAR -----
-function renderCalendar(year, month) {
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    
-    // Ajustar para começar na segunda-feira (0=domingo, 1=segunda)
-    let startDayOfWeek = firstDay.getDay() - 1; // Segunda = 0
-    if (startDayOfWeek < 0) startDayOfWeek += 7;
+        function renderCalendar(year, month) {
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            let startDayOfWeek = firstDay.getDay() - 1;
+            if (startDayOfWeek < 0) startDayOfWeek += 7;
 
-    const today = new Date();
-    const todayStr = formatDate(today);
+            const today = new Date();
+            const todayStr = formatDate(today);
 
-    let html = '';
-    // Cabeçalhos começando na SEGUNDA
-    const dayHeaders = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-    for (let h of dayHeaders) {
-        html += `<div class="day-header">${h}</div>`;
-    }
+            let html = '';
+            const dayHeaders = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+            for (let h of dayHeaders) {
+                html += `<div class="day-header">${h}</div>`;
+            }
 
-    // Dias do mês anterior para preencher
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = 0; i < startDayOfWeek; i++) {
-        const dayNum = prevMonthLastDay - startDayOfWeek + i + 1;
-        const m = month === 0 ? 11 : month - 1;
-        const y = month === 0 ? year - 1 : year;
-        const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
-        html += `<div class="day-cell other-month"><span class="day-number">${dayNum}</span></div>`;
-    }
+            const prevMonthLastDay = new Date(year, month, 0).getDate();
+            for (let i = 0; i < startDayOfWeek; i++) {
+                const dayNum = prevMonthLastDay - startDayOfWeek + i + 1;
+                const m = month === 0 ? 11 : month - 1;
+                const y = month === 0 ? year - 1 : year;
+                html += `<div class="day-cell other-month"><span class="day-number">${dayNum}</span></div>`;
+            }
 
-    // Dias do mês
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateObj = new Date(year, month, d);
-        const dateStr = formatDate(dateObj);
-        const status = getDayStatus(dateObj);
-        const isToday = dateStr === todayStr;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateObj = new Date(year, month, d);
+                const dateStr = formatDate(dateObj);
+                const status = getDayStatus(dateObj);
+                const isToday = dateStr === todayStr;
 
-        let statusLabel = '';
-        let statusClass = '';
-        if (status === 'work' || status === 'weekend-work') {
-            statusLabel = '💼 Trabalho';
-            statusClass = 'work';
-        } else if (status === 'weekend-free') {
-            statusLabel = '🌿 Folga FDS';
-            statusClass = 'weekend-free';
-        } else if (status === 'free') {
-            statusLabel = '🌿 Folga';
-            statusClass = 'free';
+                let statusLabel = '';
+                let statusClass = '';
+                if (status === 'work' || status === 'weekend-work') {
+                    statusLabel = '💼 Trabalho';
+                    statusClass = 'work';
+                } else if (status === 'weekend-free') {
+                    statusLabel = '🌿 Folga FDS';
+                    statusClass = 'weekend-free';
+                } else if (status === 'free') {
+                    statusLabel = '🌿 Folga';
+                    statusClass = 'free';
+                }
+
+                const dayShows = getShowsForDate(dateStr);
+                let showBadges = '';
+                if (dayShows.length > 0) {
+                    dayShows.forEach(s => {
+                        const possible = canGoToShow(s.date);
+                        const cls = possible ? 'possible' : 'impossible';
+                        const label = possible ? '✅' : '❌';
+                        showBadges += `<div class="show-badge ${cls}">${label} ${s.name}</div>`;
+                    });
+                }
+
+                const clickable = dayShows.length > 0 ? 'clickable' : '';
+                const todayClass = isToday ? 'today' : '';
+
+                html += `
+                    <div class="day-cell ${todayClass} ${clickable}" data-date="${dateStr}">
+                        <div class="day-number">${d}</div>
+                        ${statusLabel ? `<div class="day-status ${statusClass}">${statusLabel}</div>` : ''}
+                        ${showBadges}
+                    </div>
+                `;
+            }
+
+            const totalCells = startDayOfWeek + daysInMonth;
+            const remaining = (7 - (totalCells % 7)) % 7;
+            for (let i = 1; i <= remaining; i++) {
+                const m = month === 11 ? 0 : month + 1;
+                const y = month === 11 ? year + 1 : year;
+                html += `<div class="day-cell other-month"><span class="day-number">${i}</span></div>`;
+            }
+
+            gridEl.innerHTML = html;
+
+            const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            monthLabel.textContent = `${monthNames[month]} ${year}`;
+
+            renderMonthShows(year, month);
+            renderPossibleShows();
         }
 
-        // Shows do dia
-        const dayShows = getShowsForDate(dateStr);
-        let showBadges = '';
-        if (dayShows.length > 0) {
-            dayShows.forEach(s => {
-                const possible = canGoToShow(s.date);
-                const cls = possible ? 'possible' : 'impossible';
-                const label = possible ? '✅' : '❌';
-                showBadges += `<div class="show-badge ${cls}">${label} ${s.name}</div>`;
+        function renderMonthShows(year, month) {
+            const monthShows = getShowsForMonth(year, month);
+            if (monthShows.length === 0) {
+                monthShowsList.innerHTML = `<li class="empty-msg">Nenhum show neste mês.</li>`;
+                return;
+            }
+            const sorted = [...monthShows].sort((a,b) => a.date.localeCompare(b.date));
+            let html = '';
+            sorted.forEach(s => {
+                const dateObj = parseDate(s.date);
+                const dateStr = dateObj.toLocaleDateString('pt-BR');
+                const hasManualStatus = s.manualStatus !== undefined;
+                const possible = hasManualStatus ? s.manualStatus : canGoToShow(s.date);
+                const statusClass = possible ? 'possible' : 'impossible';
+                const statusLabel = possible ? '✅ Pode ir' : '❌ Não pode';
+                const isPago = s.pago === true;
+                const pagoLabel = isPago ? '💰 Pago' : '💸 Não pago';
+                const pagoColor = isPago ? '#16a34a' : '#dc2626';
+                const manualIndicator = hasManualStatus ? ' ✋' : '';
+                const safeName = s.name.replace(/'/g, "\\'");
+                
+                html += `
+                    <li>
+                        <div class="show-info">
+                            <span class="show-date">${dateStr}</span>
+                            <span class="show-name">${s.name}</span>
+                            ${manualIndicator ? '<span style="font-size:0.7rem; color:#6b7280;">(manual)</span>' : ''}
+                            <span style="font-size:0.7rem; font-weight:600; color:${pagoColor}; margin-left:4px;">${pagoLabel}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="show-status ${statusClass}">${statusLabel}</span>
+                            <button onclick="togglePago('${s.date}', '${safeName}')" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:0 4px;" title="Marcar como pago/não pago">
+                                <input type="checkbox" ${isPago ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#16a34a;">
+                            </button>
+                            <button onclick="toggleShowStatus('${s.date}', '${safeName}')" style="background:none;border:none;color:#2563eb;cursor:pointer;font-size:1rem;padding:0 6px;" title="Alternar status manualmente">🔄</button>
+                            <button onclick="deleteShow('${s.date}', '${safeName}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.1rem;padding:0 8px;" title="Excluir show">🗑️</button>
+                        </div>
+                    </li>
+                `;
             });
+            monthShowsList.innerHTML = html;
         }
-
-        const clickable = dayShows.length > 0 ? 'clickable' : '';
-        const todayClass = isToday ? 'today' : '';
-
-        html += `
-            <div class="day-cell ${todayClass} ${clickable}" data-date="${dateStr}">
-                <div class="day-number">${d}</div>
-                ${statusLabel ? `<div class="day-status ${statusClass}">${statusLabel}</div>` : ''}
-                ${showBadges}
-            </div>
-        `;
-    }
-
-    // Preencher dias restantes
-    const totalCells = startDayOfWeek + daysInMonth;
-    const remaining = (7 - (totalCells % 7)) % 7;
-    for (let i = 1; i <= remaining; i++) {
-        const m = month === 11 ? 0 : month + 1;
-        const y = month === 11 ? year + 1 : year;
-        const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-        html += `<div class="day-cell other-month"><span class="day-number">${i}</span></div>`;
-    }
-
-    gridEl.innerHTML = html;
-
-    // Atualizar título
-    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    monthLabel.textContent = `${monthNames[month]} ${year}`;
-
-    // Atualizar lista de shows do mês
-    renderMonthShows(year, month);
-    renderPossibleShows();
-}
-
-        // ----- RENDER LISTS -----
-function renderMonthShows(year, month) {
-    const monthShows = getShowsForMonth(year, month);
-    if (monthShows.length === 0) {
-        monthShowsList.innerHTML = `<li class="empty-msg">Nenhum show neste mês.</li>`;
-        return;
-    }
-    const sorted = [...monthShows].sort((a,b) => a.date.localeCompare(b.date));
-    let html = '';
-    sorted.forEach((s, index) => {
-        const dateObj = parseDate(s.date);
-        const dateStr = dateObj.toLocaleDateString('pt-BR');
-        
-        // Verificar se tem status manual
-        const hasManualStatus = s.manualStatus !== undefined;
-        const possible = hasManualStatus ? s.manualStatus : canGoToShow(s.date);
-        const statusClass = possible ? 'possible' : 'impossible';
-        const statusLabel = possible ? '✅ Pode ir' : '❌ Não pode';
-        
-        // Verificar status de pagamento
-        const isPago = s.pago === true;
-        const pagoLabel = isPago ? '💰 Pago' : '💸 Não pago';
-        const pagoColor = isPago ? '#16a34a' : '#dc2626';
-        
-        // Indicador de status manual
-        const manualIndicator = hasManualStatus ? ' ✋' : '';
-        
-        // Criar um ID único para cada show (baseado na data e nome)
-        const showId = `${s.date}_${s.name.replace(/\s/g, '_')}`;
-        
-        // Escapar aspas simples no nome para não quebrar o JavaScript
-        const safeName = s.name.replace(/'/g, "\\'");
-        
-        html += `
-            <li id="show-${showId}">
-                <div class="show-info">
-                    <span class="show-date">${dateStr}</span>
-                    <span class="show-name">${s.name}</span>
-                    ${manualIndicator ? '<span style="font-size:0.7rem; color:#6b7280;">(manual)</span>' : ''}
-                    <span style="font-size:0.7rem; font-weight:600; color:${pagoColor}; margin-left:4px;">
-                        ${pagoLabel}
-                    </span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="show-status ${statusClass}">${statusLabel}</span>
-                    <button onclick="togglePago('${s.date}', '${safeName}')" 
-                            style="background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 4px;" 
-                            title="Marcar como pago/não pago">
-                        <input type="checkbox" ${isPago ? 'checked' : ''} 
-                               style="width: 18px; height: 18px; cursor: pointer; accent-color: #16a34a;">
-                    </button>
-                    <button onclick="toggleShowStatus('${s.date}', '${safeName}')" 
-                            style="background: none; border: none; color: #2563eb; cursor: pointer; font-size: 1rem; padding: 0 6px;" 
-                            title="Alternar status manualmente">
-                        🔄
-                    </button>
-                    <button onclick="deleteShow('${s.date}', '${safeName}')" 
-                            style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0 8px;" 
-                            title="Excluir show">
-                        🗑️
-                    </button>
-                </div>
-            </li>
-        `;
-    });
-    monthShowsList.innerHTML = html;
-}
 
         function renderPossibleShows() {
             const possible = getAllPossibleShows();
@@ -811,14 +723,11 @@ function renderMonthShows(year, month) {
             possibleShowsList.innerHTML = html;
         }
 
-        // ----- CRUD SHOWS (COM GOOGLE SHEETS) -----
-        
         async function addShow(date, name) {
             if (!date || !name.trim()) {
                 alert('Preencha data e nome do show.');
                 return false;
             }
-            
             try {
                 const result = await callAppsScript('addShow', { date, name: name.trim() });
                 if (result.success) {
@@ -837,7 +746,6 @@ function renderMonthShows(year, month) {
         async function clearAllShows() {
             if (shows.length === 0) return;
             if (!confirm('Remover todos os shows?')) return;
-            
             try {
                 const result = await callAppsScript('clearAllShows');
                 if (result.success) {
@@ -865,29 +773,9 @@ function renderMonthShows(year, month) {
         }
 
         async function deleteShow(date, name) {
-            if (!confirm(`Tem certeza que quer excluir o show "${name}"?`)) {
-                return;
-            }
-            
-            // 🔧 GARANTIR que a data seja YYYY-MM-DD
-            let cleanDate = date;
-            if (typeof date === 'string') {
-                if (date.includes('T')) cleanDate = date.split('T')[0];
-                if (date.includes('/')) {
-                    const parts = date.split('/');
-                    if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-                        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                    }
-                }
-            }
-            
-            console.log('Excluindo:', { cleanDate, name });
-            
+            if (!confirm(`Tem certeza que quer excluir o show "${name}"?`)) return;
             try {
-                const result = await callAppsScript('deleteShow', { 
-                    date: cleanDate, 
-                    name 
-                });
+                const result = await callAppsScript('deleteShow', { date, name });
                 if (result.success) {
                     await refreshAll();
                     alert(`Show "${name}" excluído com sucesso!`);
@@ -899,139 +787,70 @@ function renderMonthShows(year, month) {
             }
         }
 
-function toggleShowStatus(date, name) {
-    const show = shows.find(s => s.date === date && s.name === name);
-    if (!show) {
-        alert('Show não encontrado na lista!');
-        return;
-    }
-    
-    const currentCanGo = canGoToShow(show.date);
-    const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
-    
-    const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
-    
-    fetch(url)
-        .then(response => response.text())
-        .then(text => {
-            if (text.includes('"success":true')) {
-                refreshAll();
-            } else {
-                alert('Erro ao atualizar status');
+        function toggleShowStatus(date, name) {
+            const show = shows.find(s => s.date === date && s.name === name);
+            if (!show) {
+                alert('Show não encontrado na lista!');
+                return;
             }
-        })
-        .catch(error => {
-            alert('Erro: ' + error.message);
-        });
-}
-            
-            console.log('Atualizando status:', { cleanDate, name });
-            
             const currentCanGo = canGoToShow(show.date);
             const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
-            
-            try {
-                const result = await callAppsScript('updateManualStatus', { 
-                    date: cleanDate, 
-                    name, 
-                    manualStatus: newManualStatus 
+            const url = `${SCRIPT_URL}?action=updateManualStatus&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&manualStatus=${newManualStatus}`;
+            fetch(url)
+                .then(response => response.text())
+                .then(text => {
+                    if (text.includes('"success":true')) {
+                        refreshAll();
+                    } else {
+                        alert('Erro ao atualizar status');
+                    }
+                })
+                .catch(error => {
+                    alert('Erro: ' + error.message);
                 });
-                if (result.success) {
-                    await refreshAll();
-                } else {
-                    alert(result.error || 'Erro ao atualizar status');
-                }
-            } catch (error) {
-                alert('Erro ao atualizar status: ' + error.message);
-            }
         }
 
-function togglePago(date, name) {
-    const show = shows.find(s => s.date === date && s.name === name);
-    if (!show) {
-        alert('Show não encontrado na lista!');
-        return;
-    }
-    
-    const newPago = !show.pago;
-    
-    const url = `${SCRIPT_URL}?action=updatePago&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&pago=${newPago}`;
-    
-    fetch(url)
-        .then(response => response.text())
-        .then(text => {
-            if (text.includes('"success":true')) {
-                refreshAll();
-            } else {
-                alert('Erro ao atualizar pagamento');
+        function togglePago(date, name) {
+            const show = shows.find(s => s.date === date && s.name === name);
+            if (!show) {
+                alert('Show não encontrado na lista!');
+                return;
             }
-        })
-        .catch(error => {
-            alert('Erro: ' + error.message);
-        });
-}
-            
-            console.log('Atualizando pagamento:', { cleanDate, name });
-            
             const newPago = !show.pago;
-            
-            try {
-                const result = await callAppsScript('updatePago', { 
-                    date: cleanDate, 
-                    name, 
-                    pago: newPago 
+            const url = `${SCRIPT_URL}?action=updatePago&date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&pago=${newPago}`;
+            fetch(url)
+                .then(response => response.text())
+                .then(text => {
+                    if (text.includes('"success":true')) {
+                        refreshAll();
+                    } else {
+                        alert('Erro ao atualizar pagamento');
+                    }
+                })
+                .catch(error => {
+                    alert('Erro: ' + error.message);
                 });
-                if (result.success) {
-                    await refreshAll();
-                } else {
-                    alert(result.error || 'Erro ao atualizar pagamento');
-                }
-            } catch (error) {
-                alert('Erro ao atualizar pagamento: ' + error.message);
-            }
         }
 
-        // Tornar funções acessíveis globalmente
         window.deleteShow = deleteShow;
         window.toggleShowStatus = toggleShowStatus;
         window.togglePago = togglePago;
 
-        // Atualiza a referência global sempre que os shows forem acessados
-window.getShows = function() { return shows; };
-
-
-        // ----- PERSISTÊNCIA -----
-        function saveShows() {
-            localStorage.setItem('bandShows', JSON.stringify(shows));
-        }
-
-        function loadShows() {
-            const stored = localStorage.getItem('bandShows');
-            if (stored) {
-                try { shows = JSON.parse(stored); }
-                catch(e) { shows = []; }
-            } else {
-                shows = [];
+        async function refreshAll() {
+            try {
+                const data = await carregarDoSheet();
+                if (Array.isArray(data)) {
+                    shows.length = 0;
+                    data.forEach(function(item) {
+                        shows.push(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao recarregar:', error);
             }
+            renderCalendar(currentYear, currentMonth);
         }
 
-        // ----- REFRESH -----
-async function refreshAll() {
-    try {
-        const data = await carregarDoSheet();
-        if (Array.isArray(data)) {
-            shows.length = 0;
-            data.forEach(function(item) {
-                shows.push(item);
-            });
-        }
-    } catch (error) {
-        console.error('Erro ao recarregar:', error);
-    }
-    renderCalendar(currentYear, currentMonth);
-}
-
-        // ----- NAVEGAÇÃO -----
         function goToPrevMonth() {
             if (currentMonth === 0) {
                 currentMonth = 11;
@@ -1059,7 +878,6 @@ async function refreshAll() {
             refreshAll();
         }
 
-        // ----- EVENTOS -----
         async function init() {
             const today = new Date();
             newShowDate.value = formatDate(today);
@@ -1114,7 +932,6 @@ async function refreshAll() {
 
         init();
     })();
-
 </script>
 </body>
 </html>
