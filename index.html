@@ -788,7 +788,7 @@
         }
 
         function toggleShowStatus(date, name) {
-            const show = shows.find(s => s.date === date && s.name === name);
+            const show = window.getShows().find(s => s.date === date && s.name === name);
             if (!show) {
                 alert('Show não encontrado na lista!');
                 return;
@@ -811,7 +811,7 @@
         }
 
         function togglePago(date, name) {
-            const show = shows.find(s => s.date === date && s.name === name);
+            const show = window.getShows().find(s => s.date === date && s.name === name);
             if (!show) {
                 alert('Show não encontrado na lista!');
                 return;
@@ -835,6 +835,7 @@
         window.deleteShow = deleteShow;
         window.toggleShowStatus = toggleShowStatus;
         window.togglePago = togglePago;
+	window.getShows = function() { return shows; };
 
         async function refreshAll() {
             try {
