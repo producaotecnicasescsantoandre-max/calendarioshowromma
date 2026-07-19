@@ -260,15 +260,17 @@
                     const past = isPast(show.date);
                     const pastClass = past ? 'past' : '';
                     
-                    // Status de presença
-                    let statusBadge = '';
-                    if (show.manualStatus !== undefined) {
-                        if (show.manualStatus === true) {
-                            statusBadge = '<span class="badge possible">✅ Pode ir</span>';
-                        } else {
-                            statusBadge = '<span class="badge impossible">❌ Não pode</span>';
-                        }
-                    }
+// Status de presença
+let statusBadge = '';
+if (show.manualStatus === true) {
+    statusBadge = '<span class="badge possible">✅ Pode ir</span>';
+} else if (show.manualStatus === false) {
+    statusBadge = '<span class="badge impossible">❌ Não pode</span>';
+} else {
+    // Se não tem status manual, mostra baseado na disponibilidade padrão
+    // (Aqui você pode definir a regra - por padrão vou mostrar como "Não definido")
+    statusBadge = '<span class="badge unpaid">❓ Indefinido</span>';
+}
                     
                     // Status de pagamento
                     const pagoBadge = show.pago 
