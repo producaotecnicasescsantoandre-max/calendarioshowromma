@@ -525,44 +525,47 @@ function updateSyncButton() {
             });
         }
 
-        async function carregarDoSheet() {
-            try {
-                const result = await callAppsScript('getShows');
-                if (Array.isArray(result)) {
-                    result.forEach(show => {
-                        if (show.manualStatus === 'true') show.manualStatus = true;
-                        if (show.manualStatus === 'false') show.manualStatus = false;
-                        if (show.pago === 'true') show.pago = true;
-                        if (show.pago === 'false') show.pago = false;
-                        
-                        if (typeof show.date === 'string') {
-                            if (show.date.includes('T')) show.date = show.date.split('T')[0];
-                            if (show.date.includes('/')) {
-                                const parts = show.date.split('/');
-                                if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-                                    show.date = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                                }
-                            }
-                        }
-                        if (show.date && typeof show.date !== 'string') {
-                            try {
-                                const d = new Date(show.date);
-                                if (!isNaN(d)) {
-                                    const year = d.getFullYear();
-                                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                                    const day = String(d.getDate()).padStart(2, '0');
-                                    show.date = `${year}-${month}-${day}`;
-                                }
-                            } catch(e) {}
-                        }
-                    });
+async function carregarDoSheet() {
+    try {
+        const result = await callAppsScript('getShows');
+        if (Array.isArray(result)) {
+            result.forEach(show => {
+                // Converte manualStatus para boolean
+                if (show.manualStatus === 'true' || show.manualStatus === true) {
+                    show.manualStatus = true;
+                } else if (show.manualStatus === 'false' || show.manualStatus === false) {
+                    show.manualStatus = false;
+                } else {
+                    show.manualStatus = undefined;
                 }
-                return result;
-            } catch (error) {
-                console.error('Erro ao carregar:', error);
-                return [];
-            }
+                
+                // Converte pago para boolean
+                if (show.pago === 'true' || show.pago === true) {
+                    show.pago = true;
+                } else {
+                    show.pago = false;
+                }
+                
+                // Normaliza data
+                if (typeof show.date === 'string') {
+                    if (show.date.includes('T')) {
+                        show.date = show.date.split('T')[0];
+                    }
+                    if (show.date.includes('/')) {
+                        const parts = show.date.split('/');
+                        if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                            show.date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        }
+                    }
+                }
+            });
         }
+        return result;
+    } catch (error) {
+        console.error('Erro ao carregar:', error);
+        return [];
+    }
+}
 
         function parseDate(str) {
             const parts = str.split('-');
