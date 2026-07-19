@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bruno - ROMMA</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f1f5f9;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .header .subtitle {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 6px;
+        }
+        .show-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            transition: 0.15s;
+        }
+        .show-card:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .show-card.past {
+            opacity: 0.5;
+        }
+        .show-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .show-date {
+            background: #1e293b;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .show-date.past {
+            background: #94a3b8;
+        }
+        .show-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #0f172a;
+        }
+        .show-status {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 30px;
+            white-space: nowrap;
+        }
+        .badge.possible {
+            background: #dcfce7;
+            color: #14532d;
+        }
+        .badge.impossible {
+            background: #fee2e2;
+            color: #7f1d1d;
+        }
+        .badge.paid {
+            background: #dbeafe;
+            color: #1e3a8a;
+        }
+        .badge.unpaid {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .empty-msg {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+        .count-info {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+        @media (max-width: 600px) {
+            .container { padding: 20px; }
+            .header h1 { font-size: 1.5rem; }
+            .show-card { padding: 12px 16px; }
+            .show-info { gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎸 Bruno - ROMMA</h1>
+            <p class="subtitle">Lista completa de shows</p>
+        </div>
+        
+        <div class="count-info" id="countInfo">Carregando...</div>
+        
+        <div id="showsList">
+            <div class="loading">⏳ Carregando shows...</div>
+        </div>
+        
+        <div class="footer">
+            Atualizado automaticamente · Dados do Google Sheets
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxIrqtEFX5rEsMpSdyPgd58k7IZGf1do1ZOsSf_rxTN6wlPwZNjAPYPjG79QbT18E4Y/exec';
+            
+            const showsList = document.getElementById('showsList');
+            const countInfo = document.getElementById('countInfo');
+
+            function normalizeDate(dateStr) {
+                if (!dateStr) return '';
+                if (typeof dateStr === 'string') {
+                    if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+                    if (dateStr.includes('/')) {
+                        const parts = dateStr.split('/');
+                        if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                            dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        }
+                    }
+                }
+                return String(dateStr);
+            }
+
+            function formatDateBR(dateStr) {
+                const parts = dateStr.split('-');
+                const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                return date.toLocaleDateString('pt-BR', { 
+                    weekday: 'short', 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric' 
+                });
+            }
+
+            function isPast(dateStr) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const parts = dateStr.split('-');
+                const showDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                showDate.setHours(0, 0, 0, 0);
+                return showDate < today;
+            }
+
+            async function carregarShows() {
+                try {
+                    const url = `${SCRIPT_URL}?action=getShows`;
+                    const response = await fetch(url);
+                    const text = await response.text();
+                    const data = JSON.parse(text);
+                    
+                    if (!Array.isArray(data)) {
+                        throw new Error('Dados inválidos');
+                    }
+                    
+                    // Processar dados
+                    const shows = data.map(show => {
+                        const pagoStr = String(show.pago || '').toLowerCase();
+                        const manualStr = String(show.manualStatus || '').toLowerCase();
+                        
+                        return {
+                            date: normalizeDate(show.date),
+                            name: show.name,
+                            manualStatus: manualStr === 'true' ? true : (manualStr === 'false' ? false : undefined),
+                            pago: pagoStr === 'true'
+                        };
+                    });
+                    
+                    // Remover itens inválidos
+                    const validShows = shows.filter(s => s.date && s.name);
+                    
+                    // Ordenar por data
+                    validShows.sort((a, b) => a.date.localeCompare(b.date));
+                    
+                    renderizarShows(validShows);
+                    
+                } catch (error) {
+                    console.error('Erro ao carregar:', error);
+                    showsList.innerHTML = '<div class="empty-msg">❌ Erro ao carregar os shows. Verifique a conexão.</div>';
+                    countInfo.textContent = '';
+                }
+            }
+
+            function renderizarShows(shows) {
+                if (shows.length === 0) {
+                    showsList.innerHTML = '<div class="empty-msg">📭 Nenhum show cadastrado.</div>';
+                    countInfo.textContent = '';
+                    return;
+                }
+                
+                const total = shows.length;
+                const futuros = shows.filter(s => !isPast(s.date)).length;
+                countInfo.textContent = `${total} show(s) no total · ${futuros} futuro(s)`;
+                
+                let html = '';
+                shows.forEach(show => {
+                    const past = isPast(show.date);
+                    const pastClass = past ? 'past' : '';
+                    
+                    // Status de presença
+                    let statusBadge = '';
+                    if (show.manualStatus !== undefined) {
+                        if (show.manualStatus === true) {
+                            statusBadge = '<span class="badge possible">✅ Pode ir</span>';
+                        } else {
+                            statusBadge = '<span class="badge impossible">❌ Não pode</span>';
+                        }
+                    }
+                    
+                    // Status de pagamento
+                    const pagoBadge = show.pago 
+                        ? '<span class="badge paid">💰 Pago</span>' 
+                        : '<span class="badge unpaid">💸 Pendente</span>';
+                    
+                    html += `
+                        <div class="show-card ${pastClass}">
+                            <div class="show-info">
+                                <span class="show-date ${past ? 'past' : ''}">${formatDateBR(show.date)}</span>
+                                <span class="show-name">${show.name}</span>
+                            </div>
+                            <div class="show-status">
+                                ${statusBadge}
+                                ${pagoBadge}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                showsList.innerHTML = html;
+            }
+
+            // Carregar ao abrir a página
+            carregarShows();
+        })();
+    </script>
+</body>
+</html>
