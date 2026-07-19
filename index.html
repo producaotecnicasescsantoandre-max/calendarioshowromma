@@ -530,21 +530,19 @@ async function carregarDoSheet() {
         const result = await callAppsScript('getShows');
         if (Array.isArray(result)) {
             result.forEach(show => {
-                // Converte manualStatus para boolean
-                if (show.manualStatus === 'true' || show.manualStatus === true) {
+                // Converte manualStatus para boolean (aceita TRUE, true, False, false)
+                const manualStr = String(show.manualStatus || '').toLowerCase();
+                if (manualStr === 'true') {
                     show.manualStatus = true;
-                } else if (show.manualStatus === 'false' || show.manualStatus === false) {
+                } else if (manualStr === 'false') {
                     show.manualStatus = false;
                 } else {
                     show.manualStatus = undefined;
                 }
                 
-                // Converte pago para boolean
-                if (show.pago === 'true' || show.pago === true) {
-                    show.pago = true;
-                } else {
-                    show.pago = false;
-                }
+                // Converte pago para boolean (aceita TRUE, true, False, false)
+                const pagoStr = String(show.pago || '').toLowerCase();
+                show.pago = (pagoStr === 'true');
                 
                 // Normaliza data
                 if (typeof show.date === 'string') {
