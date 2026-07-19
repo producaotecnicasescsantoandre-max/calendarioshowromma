@@ -972,13 +972,14 @@ async function init() {
     }
     refreshAll();
 
-            addBtn.addEventListener('click', () => {
-                const date = newShowDate.value;
-                const name = newShowName.value.trim();
-                if (addShow(date, name)) {
-                    newShowName.value = '';
-                }
-            });
+addBtn.addEventListener('click', async () => {
+    const date = newShowDate.value;
+    const name = newShowName.value.trim();
+    const result = await addShow(date, name);
+    if (result) {
+        newShowName.value = '';
+    }
+});
 
             newShowName.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') addBtn.click();
