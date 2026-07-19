@@ -855,45 +855,17 @@ async function syncToCloud() {
     }
     
     try {
-        // Primeiro limpar todos os shows da nuvem
-        const clearResult = await callAppsScript('clearAllShows');
-        if (!clearResult.success) {
-            alert('Erro ao preparar sincronização: ' + clearResult.error);
-            return;
-        }
+        // Enviar todos os shows locais com seus status atuais
+        const showsJSON = JSON.stringify(shows);
+        const result = await callAppsScript('syncShows', { shows: showsJSON });
         
-        // Agora enviar todos os shows locais um por um
-        let enviados = 0;
-        for (const show of shows) {
-            const result = await callAppsScript('addShow', { 
-                date: show.date, 
-                name: show.name 
-            });
-            
-            if (result.success) {
-                // Atualizar manualStatus e pago se necessário
-                if (show.manualStatus === true) {
-                    await callAppsScript('updateManualStatus', {
-                        date: show.date,
-                        name: show.name,
-                        manualStatus: true
-                    });
-                }
-                if (show.pago === true) {
-                    await callAppsScript('updatePago', {
-                        date: show.date,
-                        name: show.name,
-                        pago: true
-                    });
-                }
-                enviados++;
-            }
+        if (result.success) {
+            resetPending();
+            alert('✅ ' + result.message);
+            await refreshAll();
+        } else {
+            alert('Erro na sincronização: ' + (result.error || 'Erro desconhecido'));
         }
-        
-        resetPending();
-        saveToLocalStorage();
-        alert('✅ Sincronização concluída! ' + enviados + ' shows enviados para a nuvem.');
-        await refreshAll();
         
     } catch (error) {
         alert('Erro na sincronização: ' + error.message);
