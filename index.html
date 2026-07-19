@@ -875,6 +875,40 @@ async function syncToCloud() {
     }
 }
 
+async function syncToCloud() {
+    if (pendingChanges === 0) {
+        alert('Nenhuma alteração pendente para sincronizar.');
+        return;
+    }
+    
+    if (!confirm('Tem certeza que deseja enviar ' + pendingChanges + ' alterações para a nuvem?')) {
+        return;
+    }
+    
+    try {
+        const showsJSON = JSON.stringify(shows);
+        
+        // 🔍 TESTE: Mostrar o que está sendo enviado
+        alert('📤 Enviando para nuvem:\n' + showsJSON);
+        
+        const result = await callAppsScript('syncShows', { shows: showsJSON });
+        
+        // 🔍 TESTE: Mostrar resposta da nuvem
+        alert('📥 Resposta da nuvem:\n' + JSON.stringify(result));
+        
+        if (result.success) {
+            resetPending();
+            alert('✅ ' + result.message);
+            await refreshAll();
+        } else {
+            alert('Erro na sincronização: ' + (result.error || 'Erro desconhecido'));
+        }
+        
+    } catch (error) {
+        alert('Erro na sincronização: ' + error.message);
+    }
+}
+
 function toggleShowStatus(date, name) {
     const show = shows.find(s => s.date === date && s.name === name);
     if (!show) {
