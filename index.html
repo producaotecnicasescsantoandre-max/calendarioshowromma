@@ -370,6 +370,13 @@
         .form-add .btn {
             padding: 10px 24px;
         }
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
     </style>
 </head>
 <body>
@@ -398,6 +405,7 @@
         <div class="controls-right">
             <button class="btn btn-success" id="addExampleBtn">➕ Exemplos</button>
             <button class="btn btn-danger" id="clearAllBtn">🗑️ Limpar</button>
+	    <button class="btn" id="syncBtn" style="margin-left: 8px;">📤 Enviar para Nuvem</button>
         </div>
     </div>
 
@@ -429,6 +437,51 @@
 
 <script>
     (function() {
+
+// Sistema de sincronização local
+let pendingChanges = 0;
+
+function saveToLocalStorage() {
+    localStorage.setItem('showsData', JSON.stringify(shows));
+}
+
+function loadFromLocalStorage() {
+    const saved = localStorage.getItem('showsData');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            shows.length = 0;
+            data.forEach(item => shows.push(item));
+        } catch(e) {
+            console.error('Erro ao carregar dados locais:', e);
+        }
+    }
+}
+
+function incrementPending() {
+    pendingChanges++;
+    updateSyncButton();
+}
+
+function resetPending() {
+    pendingChanges = 0;
+    updateSyncButton();
+}
+
+function updateSyncButton() {
+    const syncBtn = document.getElementById('syncBtn');
+    if (syncBtn) {
+        if (pendingChanges > 0) {
+            syncBtn.textContent = '📤 Enviar para Nuvem (' + pendingChanges + ')';
+            syncBtn.style.background = '#dc2626';
+            syncBtn.style.animation = 'pulse 1.5s infinite';
+        } else {
+            syncBtn.textContent = '📤 Enviar para Nuvem';
+            syncBtn.style.background = '#1e293b';
+            syncBtn.style.animation = 'none';
+        }
+    }
+}
 
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxIrqtEFX5rEsMpSdyPgd58k7IZGf1do1ZOsSf_rxTN6wlPwZNjAPYPjG79QbT18E4Y/exec';
         const BASE_WORK_DATE = new Date(2026, 6, 18);
@@ -723,25 +776,32 @@
             possibleShowsList.innerHTML = html;
         }
 
-        async function addShow(date, name) {
-            if (!date || !name.trim()) {
-                alert('Preencha data e nome do show.');
-                return false;
-            }
-            try {
-                const result = await callAppsScript('addShow', { date, name: name.trim() });
-                if (result.success) {
-                    await refreshAll();
-                    return true;
-                } else {
-                    alert(result.error || 'Erro ao adicionar show');
-                    return false;
-                }
-            } catch (error) {
-                alert('Erro ao adicionar show: ' + error.message);
-                return false;
-            }
-        }
+async function addShow(date, name) {
+    if (!date || !name.trim()) {
+        alert('Preencha data e nome do show.');
+        return false;
+    }
+    
+    // Verificar se já existe localmente
+    const exists = shows.some(s => s.date === date && s.name === name.trim());
+    if (exists) {
+        alert('Show já existe na lista!');
+        return false;
+    }
+    
+    // Adicionar localmente
+    shows.push({
+        date: date,
+        name: name.trim(),
+        manualStatus: false,
+        pago: false
+    });
+    
+    saveToLocalStorage();
+    incrementPending();
+    renderCalendar(currentYear, currentMonth);
+    return true;
+}
 
         async function clearAllShows() {
             if (shows.length === 0) return;
@@ -772,72 +832,103 @@
             }
         }
 
-        async function deleteShow(date, name) {
-            if (!confirm(`Tem certeza que quer excluir o show "${name}"?`)) return;
-            try {
-                const result = await callAppsScript('deleteShow', { date, name });
-                if (result.success) {
-                    await refreshAll();
-                    alert(`Show "${name}" excluído com sucesso!`);
-                } else {
-                    alert(result.error || 'Erro ao excluir show');
-                }
-            } catch (error) {
-                alert('Erro ao excluir show: ' + error.message);
-            }
-        }
-
-async function toggleShowStatus(date, name) {
-    const show = shows.find(s => s.date === date && s.name === name);
-    if (!show) {
-        alert('Show não encontrado na lista!');
-        return;
-    }
-    const currentCanGo = canGoToShow(show.date);
-    const newManualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
+async function deleteShow(date, name) {
+    if (!confirm(`Tem certeza que quer excluir o show "${name}"?`)) return;
     
-    try {
-        const result = await callAppsScript('updateManualStatus', { 
-            date: date, 
-            name: name, 
-            manualStatus: newManualStatus 
-        });
-        
-        if (result.success) {
-            alert('Status atualizado com sucesso! ✅');
-            await refreshAll();
-        } else {
-            alert('Erro ao atualizar: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        alert('Erro de conexão: ' + error.message);
+    const index = shows.findIndex(s => s.date === date && s.name === name);
+    if (index !== -1) {
+        shows.splice(index, 1);
+        saveToLocalStorage();
+        incrementPending();
+        renderCalendar(currentYear, currentMonth);
     }
 }
 
-async function togglePago(date, name) {
+async function syncToCloud() {
+    if (pendingChanges === 0) {
+        alert('Nenhuma alteração pendente para sincronizar.');
+        return;
+    }
+    
+    if (!confirm('Tem certeza que deseja enviar ' + pendingChanges + ' alterações para a nuvem?')) {
+        return;
+    }
+    
+    try {
+        // Primeiro limpar todos os shows da nuvem
+        const clearResult = await callAppsScript('clearAllShows');
+        if (!clearResult.success) {
+            alert('Erro ao preparar sincronização: ' + clearResult.error);
+            return;
+        }
+        
+        // Agora enviar todos os shows locais um por um
+        let enviados = 0;
+        for (const show of shows) {
+            const result = await callAppsScript('addShow', { 
+                date: show.date, 
+                name: show.name 
+            });
+            
+            if (result.success) {
+                // Atualizar manualStatus e pago se necessário
+                if (show.manualStatus === true) {
+                    await callAppsScript('updateManualStatus', {
+                        date: show.date,
+                        name: show.name,
+                        manualStatus: true
+                    });
+                }
+                if (show.pago === true) {
+                    await callAppsScript('updatePago', {
+                        date: show.date,
+                        name: show.name,
+                        pago: true
+                    });
+                }
+                enviados++;
+            }
+        }
+        
+        resetPending();
+        saveToLocalStorage();
+        alert('✅ Sincronização concluída! ' + enviados + ' shows enviados para a nuvem.');
+        await refreshAll();
+        
+    } catch (error) {
+        alert('Erro na sincronização: ' + error.message);
+    }
+}
+
+function toggleShowStatus(date, name) {
     const show = shows.find(s => s.date === date && s.name === name);
     if (!show) {
         alert('Show não encontrado na lista!');
         return;
     }
-    const newPago = !show.pago;
     
-    try {
-        const result = await callAppsScript('updatePago', { 
-            date: date, 
-            name: name, 
-            pago: newPago 
-        });
-        
-        if (result.success) {
-            alert('Status de pagamento atualizado! 💰');
-            await refreshAll();
-        } else {
-            alert('Erro ao atualizar: ' + (result.error || 'Erro desconhecido'));
-        }
-    } catch (error) {
-        alert('Erro de conexão: ' + error.message);
+    const currentCanGo = canGoToShow(show.date);
+    show.manualStatus = show.manualStatus === undefined ? !currentCanGo : !show.manualStatus;
+    
+    saveToLocalStorage();
+    incrementPending();
+    renderCalendar(currentYear, currentMonth);
+    alert('Status atualizado! ✅ (Não enviado para nuvem)');
+}
+
+function togglePago(date, name) {
+    const show = shows.find(s => s.date === date && s.name === name);
+    if (!show) {
+        alert('Show não encontrado na lista!');
+        return;
     }
+    
+    show.pago = !show.pago;
+    
+    saveToLocalStorage();
+    incrementPending();
+    renderCalendar(currentYear, currentMonth);
+    alert('Pagamento atualizado! 💰 (Não enviado para nuvem)');
 }
 
         window.deleteShow = deleteShow;
@@ -845,20 +936,23 @@ async function togglePago(date, name) {
         window.togglePago = togglePago;
 	window.getShows = function() { return shows; };
 
-        async function refreshAll() {
-            try {
-                const data = await carregarDoSheet();
-                if (Array.isArray(data)) {
-                    shows.length = 0;
-                    data.forEach(function(item) {
-                        shows.push(item);
-                    });
-                }
-            } catch (error) {
-                console.error('Erro ao recarregar:', error);
-            }
-            renderCalendar(currentYear, currentMonth);
+async function refreshAll() {
+    try {
+        const data = await carregarDoSheet();
+        if (Array.isArray(data)) {
+            shows.length = 0;
+            data.forEach(function(item) {
+                shows.push(item);
+            });
+            saveToLocalStorage();
         }
+    } catch (error) {
+        console.error('Erro ao recarregar:', error);
+        // Se falhar, carrega do localStorage
+        loadFromLocalStorage();
+    }
+    renderCalendar(currentYear, currentMonth);
+}
 
         function goToPrevMonth() {
             if (currentMonth === 0) {
@@ -887,19 +981,24 @@ async function togglePago(date, name) {
             refreshAll();
         }
 
-        async function init() {
-            const today = new Date();
-            newShowDate.value = formatDate(today);
-            currentYear = today.getFullYear();
-            currentMonth = today.getMonth();
-            
-            try {
-                const data = await carregarDoSheet();
-                if (Array.isArray(data)) shows = data;
-            } catch (error) {
-                shows = [];
-            }
-            refreshAll();
+async function init() {
+    const today = new Date();
+    newShowDate.value = formatDate(today);
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth();
+    
+    try {
+        const data = await carregarDoSheet();
+        if (Array.isArray(data)) {
+            shows = data;
+            saveToLocalStorage();
+            resetPending();
+        }
+    } catch (error) {
+        shows = [];
+        loadFromLocalStorage();
+    }
+    refreshAll();
 
             addBtn.addEventListener('click', () => {
                 const date = newShowDate.value;
@@ -918,6 +1017,9 @@ async function togglePago(date, name) {
             prevBtn.addEventListener('click', goToPrevMonth);
             nextBtn.addEventListener('click', goToNextMonth);
             todayBtn.addEventListener('click', goToToday);
+// Botão de sincronização
+const syncBtn = document.getElementById('syncBtn');
+syncBtn.addEventListener('click', syncToCloud);
 
             gridEl.addEventListener('click', (e) => {
                 const cell = e.target.closest('.day-cell');
