@@ -168,6 +168,8 @@
         (function() {
             const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxIrqtEFX5rEsMpSdyPgd58k7IZGf1do1ZOsSf_rxTN6wlPwZNjAPYPjG79QbT18E4Y/exec';
             
+	    const BASE_WORK_DATE = new Date(2026, 6, 18);
+	    const WORK_DAYS = [2, 3, 4, 5]; // Ter, Qua, Qui, Sex
             const showsList = document.getElementById('showsList');
             const countInfo = document.getElementById('countInfo');
 
@@ -204,6 +206,41 @@
                 showDate.setHours(0, 0, 0, 0);
                 return showDate < today;
             }
+
+function isWeekdayWork(date) {
+    return WORK_DAYS.includes(date.getDay());
+}
+
+function isWeekendWork(date) {
+    const day = date.getDay();
+    if (day !== 0 && day !== 6) return false;
+    const base = new Date(BASE_WORK_DATE);
+    base.setHours(0,0,0,0);
+    const target = new Date(date);
+    target.setHours(0,0,0,0);
+    const diffDays = Math.floor((target - base) / (1000 * 60 * 60 * 24));
+    let refDiff = diffDays;
+    if (day === 0) refDiff = diffDays - 1;
+    const mod = ((refDiff % 14) + 14) % 14;
+    return mod === 0;
+}
+
+function getDayStatus(date) {
+    const day = date.getDay();
+    if (isWeekdayWork(date)) return 'work';
+    if (day === 0 || day === 6) {
+        return isWeekendWork(date) ? 'weekend-work' : 'weekend-free';
+    }
+    return 'free';
+}
+
+function canGoToShow(dateStr) {
+    const parts = dateStr.split('-');
+    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const status = getDayStatus(date);
+    if (status === 'work' || status === 'weekend-work') return false;
+    return true;
+}
 
             async function carregarShows() {
                 try {
@@ -260,16 +297,20 @@
                     const past = isPast(show.date);
                     const pastClass = past ? 'past' : '';
                     
-// Status de presença
+// Status de presença (mesma lógica do calendário)
 let statusBadge = '';
 if (show.manualStatus === true) {
     statusBadge = '<span class="badge possible">✅ Pode ir</span>';
 } else if (show.manualStatus === false) {
     statusBadge = '<span class="badge impossible">❌ Não pode</span>';
 } else {
-    // Se não tem status manual, mostra baseado na disponibilidade padrão
-    // (Aqui você pode definir a regra - por padrão vou mostrar como "Não definido")
-    statusBadge = '<span class="badge unpaid">❓ Indefinido</span>';
+    // Se não tem status manual, usa a regra da escala
+    const podeIr = canGoToShow(show.date);
+    if (podeIr) {
+        statusBadge = '<span class="badge possible">✅ Pode ir</span>';
+    } else {
+        statusBadge = '<span class="badge impossible">❌ Não pode</span>';
+    }
 }
                     
                     // Status de pagamento
